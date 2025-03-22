@@ -116,7 +116,6 @@ async function sendEmail(richText) {
 
     try {
         let info = await transporter.sendMail(message);
-        console.log('Email sent: ' + info.messageId);
         fs.appendFile('output.log', 'Email sent: ' + info.messageId + '\n', (err) => {});
     } catch (error) {
         console.error('Error sending email: ' + error);

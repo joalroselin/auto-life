@@ -1,0 +1,122 @@
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+const TARGET_COLUMN = 'D';
+const DATE_COLUMN = 'B';
+const INITIAL_ROW = 2;
+const today = new Date();
+const todayDay = today.getDay();
+const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const currentMonth = today.getMonth();
+const currentMonthName = monthNames[currentMonth];
+const SHEET_NAME = currentMonthName;
+
+const START_DATE = new Date('2025-04-24');
+
+const RECIPIENT_EMAIL = process.env.GMAIL_USER_JRL_MAIN;
+const SUBJECT = 'UPDATE TRACKER';
+
+const BODY_TEMPLATE = process.env.BODY_TEMPLATE;
+
+function formatTimeFromDate(dateObject) {
+    if (dateObject instanceof Date) {
+        try {
+        const hours = dateObject.getHours();
+        let minutes = dateObject.getMinutes();
+        if (minutes < 30) {
+            minutes = 30;
+        } else if (minutes > 30) {
+            minutes = 0;
+        }
+        const formattedHours = String(hours).padStart(2, '0');
+        const formattedMinutes = String(minutes).padStart(2, '0');
+        return `${formattedHours}:${formattedMinutes}`;
+        } catch (e) {
+        Logger.log(`Error formatting date object: ${dateObject} - ${e}`);
+        return 'Invalid Time';
+        }
+    }
+    return null;
+}
+
+function checkCellAndNotify() {
+    try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_NAME);
+
+    today.setHours(0, 0, 0, 0);
+    START_DATE.setHours(0, 0, 0, 0);
+
+    if (!sheet) {
+        Logger.log(`Error: Sheet "${SHEET_NAME}" not found in spreadsheet "${SPREADSHEET_NAME}".`);
+        MailApp.sendEmail(
+            RECIPIENT_EMAIL,
+            'SCRIPT ERROR: Google Sheet Sheet Not Found',
+            `The Google Apps Script failed because the sheet "${SHEET_NAME}" was not found in spreadsheet "${SPREADSHEET_MNAME}". Please check your configuration.`
+        );
+        return;
+    }
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < INITIAL_ROW) {
+        Logger.log(`No data found in sheet "${SHEET_NAME}" starting at row ${INITIAL_ROW}.`);
+        return;
+    }
+
+    const timeDiff = today.getTime() - START_DATE.getTime();
+    const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    // Logger.log(`dayDiff: ${dayDiff}`);
+
+    const dateColumnValues = sheet.getRange(INITIAL_ROW, sheet.getRange(DATE_COLUMN + INITIAL_ROW).getColumn(), lastRow - INITIAL_ROW + 1, 1).getValues();
+    let foundRow = -1;
+
+    Logger.log(`Searching for date ${today.toDateString()} in column ${DATE_COLUMN}, starting at row ${INITIAL_ROW}...`);
+
+    for (let i = 0; i < dateColumnValues.length; i++) {
+        const cellDate = dateColumnValues[i][0];
+        if (cellDate instanceof Date) {
+            cellDate.setHours(0, 0, 0, 0);
+            if (cellDate.getTime() === today.getTime()) {
+            foundRow = i + INITIAL_ROW - 1;
+            Logger.log(`Found date match in row ${foundRow}.`);
+            break;
+            }
+        } else { Logger.log(`Row ${i + INITIAL_ROW} in column ${DATE_COLUMN} is not a date: ${cellDate}`); }
+    }
+
+    if (foundRow === -1) {
+      Logger.log(`Today's date (${today.toDateString()}) not found in column ${DATE_COLUMN}, starting from row <span class="math-inline">\{INITIAL\_ROW\} in sheet "</span>{dynamicSheetName}". No check performed.`);
+      return;
+    }
+
+    const CELL_RANGE = TARGET_COLUMN + foundRow;
+    const targetCell = sheet.getRange(CELL_RANGE);
+    const cellValue = targetCell.getValue();
+    const isCellEmpty = cellValue === null || String(cellValue).trim() === "";
+    const cellValueTime = formatTimeFromDate(cellValue);
+
+    Logger.log(`${currentMonthName}: Checking Time Slept on cell ${CELL_RANGE}. Value found: "${cellValue}". Is empty: ${isCellEmpty}`);
+    if (isCellEmpty) {
+        Logger.log(`${currentMonthName}: Cell ${CELL_RANGE} is empty. Sending notification.`);
+        const spreadsheetName = ss.getName();
+        const spreadsheetUrl = ss.getUrl();
+
+        const emailBody = BODY_TEMPLATE
+            .replace('%SHEET_NAME%', SHEET_NAME)
+            .replace('%CELL_RANGE%', CELL_RANGE)
+            .replace('%SPREADSHEET_NAME%', spreadsheetName)
+            .replace('%SPREADSHEET_URL%', spreadsheetUrl);
+
+        MailApp.sendEmail(RECIPIENT_EMAIL, SUBJECT, emailBody);
+        Logger.log(`Notification sent successfully to ${RECIPIENT_EMAIL}`);
+    } else {
+        Logger.log(`${currentMonthName}: Cell ${CELL_RANGE} is filled ("${cellValue}"). No notification needed.`);
+    }
+
+    } catch (e) {
+        Logger.log(`An unexpected error occurred: ${e}`);
+        MailApp.sendEmail(
+        RECIPIENT_EMAIL,
+        'SCRIPT ERROR: Google Sheet Monitoring Failed',
+        `An unexpected error occurred while running the script for spreadsheet ${SPREADSHEET_NAME}. Error details: ${e}`
+        );
+    }
+}

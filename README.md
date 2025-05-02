@@ -1,2 +1,2 @@
 # auto-life
-Personal vault or collection of automations and integrations to avoid paying for third party services
+personal progressive project automating bits and pieces of my life because I don't like paying for services

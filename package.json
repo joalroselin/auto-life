@@ -1,0 +1,19 @@
+{
+  "name": "book-to-read-list",
+  "version": "1.0.0",
+  "main": "nyt_bestsellers.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "dotenv": "^16.4.7",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.10.0"
+  }
+}
